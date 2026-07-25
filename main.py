@@ -7,11 +7,11 @@ from pathlib import Path
 # Add src to the Python path so we can import our modules
 sys.path.append(str(Path(__file__).parent / "src"))
 
-from src.1_curator import DocumentCurator
-from src.2_data_designer import DataDesignerProcessor
-from src.3_synthesizer import DataSynthesizer
-from src.4_safe_synthesizer import SafeSynthesizerValidator
-from src.5_lora_finetune import LoRACustomizer
+from src.curator import DocumentCurator
+from src.data_designer import DataDesignerProcessor
+from src.synthesizer import DataSynthesizer
+from src.safe_synthesizer import SafeSynthesizerValidator
+from src.lora_finetune import LoRACustomizer
 
 # Configure logging for the pipeline
 logging.basicConfig(
