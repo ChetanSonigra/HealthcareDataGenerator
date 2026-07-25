@@ -1,0 +1,18 @@
+{
+  "manifest_version": "2026-07-21",
+  "description": "Link-only corpus of public, non-member-specific Humana and US government PDFs. Files are downloaded at runtime and are not redistributed.",
+  "rights_profiles": {
+    "humana_public": "Publicly accessible Humana material; link and quote with attribution. Humana copyright and site terms apply.",
+    "us_government": "Official US government publication; preserve agency attribution and verify current revisions before production use."
+  },
+  "sources": [
+    {
+      "id": "humana_provider_delegated_2026",
+      "title": "Humana Provider Manual for Delegated Providers (2026)",
+      "publisher": "Humana",
+      "year": 2026,
+      "category": "provider_operations",
+      "url": "https://assets.humana.com/is/content/humana/FINAL_773902ALL0725-A_2026_ProviderManual-Delegated_formattedpdf"
+    }
+  ]
+}

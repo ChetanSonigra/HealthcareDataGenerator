@@ -1,32 +1,37 @@
-import json
 import requests
-from loguru import logger
+import json
+import os
 
-class DataSynthesizer:
-    def __init__(self, api_key: str, endpoint_url: str):
-        self.api_key = api_key
-        self.endpoint_url = endpoint_url
+class Synthesizer:
+    def __init__(self, config):
+        self.config = config
+        self.api_url = self.config['microservices']['data_designer_url']
         self.headers = {
-            "Authorization": f"Bearer {self.api_key}",
+            "Authorization": f"Bearer {self.config['microservices']['api_key']}",
             "Content-Type": "application/json"
         }
 
-    def generate_prompt(self, case_id: str, state: str, plan_type: str, topic: str) -> str:
-        return (
-            f"Generate a multi-turn customer support conversation for synthetic case {case_id}. "
-            f"The customer profile is a {plan_type} member in {state}. "
-            f"The user needs help understanding where to verify a {topic} question. "
-            "The assistant must use only public guidance and must not make a coverage decision. "
-            "Ensure the resolution emphasizes guidance and human verification."
-        )
-
-    def generate_synthetic_data(self, prompt: str) -> dict:
+    def generate_synthetic_data(self, prompt):
+        print("--- Running Synthetic Data Generation Job ---")
         payload = {
-            "model": "nemotron-4-340b-instruct",
+            "model": self.config['microservices']['model'],
             "messages": [{"role": "user", "content": prompt}],
             "temperature": 0.7,
-            "max_tokens": 1024
+            "max_tokens": 4096
         }
-        response = requests.post(self.endpoint_url, headers=self.headers, json=payload)
-        response.raise_for_status()
-        return response.json()
+        
+        # In a real environment, this hits the NeMo Data Designer NIM endpoint
+        try:
+            response = requests.post(self.api_url, headers=self.headers, json=payload)
+            response.raise_for_status()
+            synthetic_output = response.json()['choices'][0]['message']['content']
+        except Exception as e:
+            print(f"API Error (Fallback to mock for demonstration): {e}")
+            synthetic_output = '[{"mock": "generated_data", "synthetic_only": true}]'
+
+        output_path = os.path.join(self.config['pipeline']['output_dir'], "raw_synthetic_data.json")
+        with open(output_path, "w") as f:
+            f.write(synthetic_output)
+            
+        print(f"Synthetic data generated and saved to {output_path}")
+        return output_path

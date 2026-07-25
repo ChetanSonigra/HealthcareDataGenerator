@@ -1,67 +1,49 @@
-import io
-import json
-import logging
-import requests
-from pathlib import Path
-from typing import List, Dict, Any
-from pypdf import PdfReader
-from nemo_curator.core.client import RayClient
+import os
+import nemo_curator
+from nemo_curator.datasets import DocumentDataset
+from nemo_curator.filters import WordCountFilter
+from nemo_curator.modules import ExactDuplicates, FuzzyDuplicates, SemanticDuplicates
+from nemo_curator.modifiers.pii_modifier import PiiModifier
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+class NeMoDataCurator:
+    def __init__(self, config):
+        self.config = config
+        self.output_dir = os.path.join(self.config['pipeline']['output_dir'], "curated")
+        os.makedirs(self.output_dir, exist_ok=True)
 
-class DocumentCurator:
-    def __init__(self, manifest_path: str, output_dir: str):
-        self.manifest_path = Path(manifest_path)
-        self.output_dir = Path(output_dir)
-        self.output_dir.mkdir(parents=True, exist_ok=True)
+    def process_data(self):
+        print("--- Starting NeMo Curator Process ---")
+        # Load dataset
+        dataset = DocumentDataset.read_json(
+            self.config['pipeline']['generated_data_path'],
+            backend="ray"
+        )
         
-        # Initialize Ray Client for distributed execution
-        self.ray_client = RayClient()
-        self.ray_client.start()
+        # 1. Quality Assessment (Basic word count filter as example)
+        print("Applying Quality Assessment Filters...")
+        dataset = dataset.filter(WordCountFilter(min_words=5))
 
-    def load_manifest(self) -> List[Dict[str, Any]]:
-        with open(self.manifest_path, 'r') as f:
-            manifest = json.load(f)
-        return manifest.get("sources", [])
+        # 2. PII Filtration
+        print("Applying PII Filtration...")
+        pii_modifier = PiiModifier(
+            supported_entities=["PERSON", "PHONE_NUMBER", "EMAIL_ADDRESS", "LOCATION"]
+        )
+        dataset = dataset.modify(pii_modifier)
 
-    def download_and_extract(self, sources: List[Dict[str, Any]]) -> str:
-        download_dir = self.output_dir / "jsonl_inputs"
-        download_dir.mkdir(exist_ok=True)
+        # 3. Deduplication (Exact, Fuzzy, Semantic)
+        print("Running Deduplication...")
+        exact_dedup = ExactDuplicates(text_field="content")
+        dataset = exact_dedup(dataset)
         
-        for source in sources:
-            url = source.get('url')
-            doc_id = source.get('id', 'document')
-            if not url:
-                continue
-                
-            try:
-                logger.info(f"Downloading and extracting source: {doc_id}")
-                headers = {'User-Agent': 'Mozilla/5.0'}
-                response = requests.get(url, headers=headers, timeout=30)
-                response.raise_for_status()
-                
-                pdf_file = io.BytesIO(response.content)
-                reader = PdfReader(pdf_file)
-                extracted_text = "".join([page.extract_text() + "\n" for page in reader.pages if page.extract_text()])
-                
-                file_path = download_dir / f"{doc_id}.jsonl"
-                doc_data = {
-                    "id": doc_id,
-                    "text": extracted_text,
-                    "url": url,
-                    "category": source.get("category", "unknown")
-                }
-                
-                with open(file_path, 'w', encoding='utf-8') as f:
-                    f.write(json.dumps(doc_data) + '\n')
-            except Exception as e:
-                logger.error(f"Failed to process {doc_id}: {str(e)}")
-                
-        return str(download_dir)
+        fuzzy_dedup = FuzzyDuplicates(text_field="content", seed=42)
+        dataset = fuzzy_dedup(dataset)
 
-    def execute(self) -> str:
-        sources = self.load_manifest()
-        output_jsonl_dir = self.download_and_extract(sources)
-        logger.info(f"Curation inputs successfully staged at {output_jsonl_dir}")
-        return output_jsonl_dir
+        # Note: Semantic deduplication requires an embedding model initialization
+        # semantic_dedup = SemanticDuplicates(text_field="content", embedding_model="...")
+        # dataset = semantic_dedup(dataset)
+        
+        # Save curated data
+        output_path = os.path.join(self.output_dir, "curated_data.jsonl")
+        dataset.to_json(output_path, write_empty=False)
+        print(f"Curated data saved to {output_path}")
+        return output_path

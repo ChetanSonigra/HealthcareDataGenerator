@@ -1,10 +1,4 @@
-requests>=2.31.0
-urllib3>=2.0.0
-pydantic>=2.4.0
-pandas>=2.0.0
-pyyaml>=6.0
-pypdf>=3.0.0
-ray>=2.0.0
-nemo-curator>=1.2.0
-fasttext-wheel>=0.9.2
-loguru>=0.7.0
+nemo-curator
+ray[default]
+requests
+pyyaml
