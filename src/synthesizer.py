@@ -1,6 +1,7 @@
 import os
 import json
 import urllib3
+from nemo_platform import NemoPlatform
 
 # Suppress the InsecureRequestWarning so your terminal stays clean
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -67,10 +68,13 @@ class Synthesizer:
 
         # 3. Submit the Job
         print("Submitting job to NeMo Data Designer SDK...")
-        job_results = client.create(builder, num_records=total_records)
+        sdk = NemoPlatform(base_url="...",workspace="default")
+        data_designer = sdk.data_designer
+        preview = data_designer.preview(builder)
+        job = data_designer.create(builder)
+        job.wait_until_done()
         
-        print("Waiting for job to complete (this may take a minute)...")
-        job_results.wait_until_done()
+        job_results = job.download_artifacts()
         
         # Load the final generated dataset
         dataset = job_results.load_dataset()
