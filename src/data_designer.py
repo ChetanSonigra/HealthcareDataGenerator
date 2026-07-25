@@ -7,10 +7,17 @@ class DataDesigner:
     def generate_prompt(self):
         print("--- Generating Prompt via Data Designer ---")
         
-        # Load sample data structure dynamically
+        # Load sample data structure robustly (handles both standard JSON arrays and JSONL)
         with open(self.config['pipeline']['generated_data_path'], 'r') as f:
-            sample_data = json.loads(f.readline()) # Reading first line of JSONL
-            
+            try:
+                data = json.load(f)
+                # If it's a list, grab the first case as the schema template
+                sample_data = data[0] if isinstance(data, list) else data
+            except json.JSONDecodeError:
+                # Fallback if the file happens to be formatted as JSON Lines
+                f.seek(0)
+                sample_data = json.loads(f.readline())
+                
         with open(self.config['pipeline']['manifest_path'], 'r') as f:
             manifest_data = json.load(f)
 
