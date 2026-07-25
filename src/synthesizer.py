@@ -45,8 +45,10 @@ class Synthesizer:
 
         # 1. Initialize the NeMo Data Designer Client
         # FIX: Removed the base_url override so the SDK uses its correct native endpoints!
+      # 1. Initialize the NeMo Data Designer Client
         print("Initializing SDK Client...")
         client = NeMoDataDesignerClient(
+            base_url="https://api.nvidia.com", # Root domain only!
             default_headers={"Authorization": f"Bearer {self.api_key}"}
         )
 
