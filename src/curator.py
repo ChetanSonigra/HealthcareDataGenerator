@@ -3,11 +3,28 @@ from nemo_curator.core.client import RayClient
 from nemo_curator.pipeline import Pipeline
 from nemo_curator.stages.text.io.reader import JsonlReader
 from nemo_curator.stages.text.io.writer import JsonlWriter
+
+# 1.0+ Updated Filter Imports
 from nemo_curator.stages.text.filters import ScoreFilter
-from nemo_curator.filters import WordCountFilter
+from nemo_curator.stages.text.filters.heuristic import WordCountFilter
+
+# 1.0+ Updated Modifier Imports
 from nemo_curator.stages.text.modifiers import Modify
-from nemo_curator.modifiers.pii_modifier import PiiModifier
+
+# Bulletproof dynamic import for PII Modifier across NeMo Curator 1.x versions
+try:
+    # Path in newest 1.2+ releases
+    from nemo_curator.pii import PiiModifier
+except ImportError:
+    try:
+        # Alternate 1.x refactored path
+        from nemo_curator.stages.text.modifiers.pii_modifier import PiiModifier
+    except ImportError:
+        # Legacy 0.x path fallback
+        from nemo_curator.modifiers.pii_modifier import PiiModifier
+
 from nemo_curator.stages.deduplication.exact.workflow import ExactDeduplicationWorkflow
+
 
 class NeMoDataCurator:
     def __init__(self, config):
