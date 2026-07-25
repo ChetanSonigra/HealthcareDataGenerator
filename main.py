@@ -6,11 +6,11 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).parent / "src"))
 
-from _1_curator import DocumentCurator
-from _2_data_designer import DataDesignerProcessor
-from _3_synthesizer import DataSynthesizer
-from _4_safe_synthesizer import SafeSynthesizerValidator
-from _5_lora_finetune import LoRACustomizer
+from curator import DocumentCurator
+from data_designer import DataDesignerProcessor
+from synthesizer import DataSynthesizer
+from safe_synthesizer import SafeSynthesizerValidator
+from lora_finetune import LoRACustomizer
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("RayOrchestrator")
