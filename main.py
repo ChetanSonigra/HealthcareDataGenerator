@@ -5,7 +5,7 @@ from src.synthesizer import Synthesizer
 from src.safe_synthesizer import SafeSynthesizer
 from src.lora_finetune import LoRACustomizer
 
-def load_config(config_path="config/pipeline_config.yaml"):
+def load_config(config_path="configs/pipeline_config.yaml"):
     with open(config_path, "r") as f:
         return yaml.safe_load(f)
 
