@@ -3,11 +3,17 @@ from nemo_curator.core.client import RayClient
 from nemo_curator.pipeline import Pipeline
 from nemo_curator.stages.text.io.reader import JsonlReader
 from nemo_curator.stages.text.io.writer import JsonlWriter
+
+# 1.0+ Updated Filter Imports
 from nemo_curator.stages.text.filters import ScoreFilter
-from nemo_curator.filters import WordCountFilter
+from nemo_curator.stages.text.filters.heuristic import WordCountFilter
+
+# 1.0+ Updated Modifier Imports
 from nemo_curator.stages.text.modifiers import Modify
 from nemo_curator.modifiers.pii_modifier import PiiModifier
+
 from nemo_curator.stages.deduplication.exact.workflow import ExactDeduplicationWorkflow
+
 
 class NeMoDataCurator:
     def __init__(self, config):
