@@ -6,7 +6,7 @@ from src.synthesizer import Synthesizer
 from src.safe_synthesizer import SafeSynthesizer
 from src.lora_finetune import LoRACustomizer
 
-def load_config(config_path="config/pipeline_config.yaml"):
+def load_config(config_path="configs/pipeline_config.yaml"):
     # Get the absolute directory where main.py is located
     base_dir = os.path.dirname(os.path.abspath(__file__))
     config_full = os.path.join(base_dir, config_path)
