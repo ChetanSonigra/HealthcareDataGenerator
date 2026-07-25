@@ -10,7 +10,7 @@ ray:
 
 microservices:
   api_key: "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"
-  data_designer_url: "https://localhost:8080/v1/nemo/dd"
+  data_designer_url: "https://ai.api.nvidia.com/v1/nemo/dd"
   safe_synthesizer_url: "https://localhost:8080/v1/nemo/safe-synthesizer/validate"
   customizer_url: "https://localhost:8080/v1/nemo/customizer/lora"
   model: "nemotron-4-340b-instruct"
