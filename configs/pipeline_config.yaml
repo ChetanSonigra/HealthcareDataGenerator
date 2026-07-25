@@ -9,12 +9,8 @@ ray:
   address: "auto"
 
 microservices:
-  # (Keep whatever real API key you pasted in here!)
-  api_key: "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"" 
-  
-  # The updated, live NIM endpoint
+  api_key: "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"
   data_designer_url: "https://integrate.api.nvidia.com/v1/chat/completions"
-  
   safe_synthesizer_url: "https://api.nvidia.com/v1/nemo/safe-synthesizer/validate"
   customizer_url: "https://api.nvidia.com/v1/nemo/customizer/lora"
   model: "nvidia/nemotron-4-340b-instruct" # Updated model path format
