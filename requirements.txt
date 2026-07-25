@@ -1,0 +1,15 @@
+# Core Python libraries for API integration and data handling
+requests>=2.31.0
+urllib3>=2.0.0
+pydantic>=2.4.0
+pandas>=2.0.0
+
+# NVIDIA NeMo Curator and its primary dependencies
+nemo-curator>=0.2.0
+
+# Language Identification (Required for Data Designer Language Management)
+fasttext-wheel>=0.9.2
+
+# Optional but highly recommended for enterprise scaling (Dask & GPU support)
+dask[dataframe]>=2023.10.1
+distributed>=2023.10.1
