@@ -8,22 +8,40 @@ from nemo_curator.stages.text.io.writer import JsonlWriter
 from nemo_curator.stages.text.filters import ScoreFilter
 from nemo_curator.stages.text.filters.heuristic import WordCountFilter
 
-# 1.0+ Updated Modifier Imports
-from nemo_curator.stages.text.modifiers import Modify
+from nemo_curator.stages.deduplication.exact.workflow import ExactDeduplicationWorkflow
 
-# Bulletproof dynamic import for PII Modifier across NeMo Curator 1.x versions
+# --- BULLETPROOF PII IMPORT ---
+pii_stage = None
 try:
-    # Path in newest 1.2+ releases
-    from nemo_curator.pii import PiiModifier
+    # 1. Try the absolute newest 1.2.0+ API (Renamed to PiiDeidentifier)
+    from nemo_curator.pii.algorithm import PiiDeidentifier
+    from nemo_curator.stages.text.modifiers import Modify
+    print("Successfully loaded PiiDeidentifier from newest API.")
+    pii_modifier_obj = PiiDeidentifier(supported_entities=["PERSON", "PHONE_NUMBER", "EMAIL_ADDRESS", "LOCATION"])
+    pii_stage = Modify(modifier_fn=pii_modifier_obj, input_fields="content")
+
 except ImportError:
     try:
-        # Alternate 1.x refactored path
-        from nemo_curator.stages.text.modifiers.pii_modifier import PiiModifier
-    except ImportError:
-        # Legacy 0.x path fallback
-        from nemo_curator.modifiers import PiiModifier
+        # 2. Try the 1.0 API
+        from nemo_curator.pii import PiiModifier
+        from nemo_curator.stages.text.modifiers import Modify
+        print("Successfully loaded PiiModifier from 1.0 API.")
+        pii_modifier_obj = PiiModifier(supported_entities=["PERSON", "PHONE_NUMBER", "EMAIL_ADDRESS", "LOCATION"])
+        pii_stage = Modify(modifier_fn=pii_modifier_obj, input_fields="content")
 
-from nemo_curator.stages.deduplication.exact.workflow import ExactDeduplicationWorkflow
+    except ImportError:
+        try:
+            # 3. Try the legacy 0.x API
+            from nemo_curator.modifiers.pii_modifier import PiiModifier
+            from nemo_curator.modules.modify import Modify
+            print("Successfully loaded PiiModifier from 0.x API.")
+            pii_modifier_obj = PiiModifier(supported_entities=["PERSON", "PHONE_NUMBER", "EMAIL_ADDRESS", "LOCATION"])
+            pii_stage = Modify(modifier_fn=pii_modifier_obj, input_fields="content")
+            
+        except ImportError as e:
+            print(f"WARNING: Skipping PII Filtration. Could not locate PII modules in this NeMo Curator version. Error: {e}")
+            pii_stage = None
+# ------------------------------
 
 
 class NeMoDataCurator:
@@ -33,9 +51,9 @@ class NeMoDataCurator:
         os.makedirs(self.output_dir, exist_ok=True)
 
     def process_data(self):
-        print("--- Starting NeMo Curator Process (1.0+ API) ---")
+        print("--- Starting NeMo Curator Process ---")
         
-        # 1. Initialize Ray Client specifically for Curator
+        # 1. Initialize Ray Client
         ray_client = RayClient()
         ray_client.start()
         print("Ray client initialized.")
@@ -48,31 +66,25 @@ class NeMoDataCurator:
         writer = JsonlWriter(filtered_output)
         
         # 3. Define Processing Stages for Pipeline
-        print("Applying Quality Assessment and PII Filters...")
-        
-        # Wraps the filter object using ScoreFilter
+        print("Applying Quality Assessment Filters...")
         word_count_filter = ScoreFilter(
             filter_obj=WordCountFilter(min_words=5),
-            text_field="content" # Target field in your JSONL
+            text_field="content" 
         )
         
-        # Wraps the modifier object using Modify
-        pii_modifier = Modify(
-            modifier_fn=PiiModifier(supported_entities=["PERSON", "PHONE_NUMBER", "EMAIL_ADDRESS", "LOCATION"]),
-            input_fields="content"
-        )
-        
-        # 4. Build and Execute the Modality Pipeline
-        pipeline = Pipeline([
-            reader,
-            word_count_filter,
-            pii_modifier,
-            writer
-        ])
+        # Build Pipeline dynamically based on whether PII loaded successfully
+        pipeline_stages = [reader, word_count_filter]
+        if pii_stage:
+            print("Adding PII Filtration to pipeline...")
+            pipeline_stages.append(pii_stage)
+        pipeline_stages.append(writer)
+
+        # 4. Execute the Modality Pipeline
+        pipeline = Pipeline(pipeline_stages)
         pipeline.run()
-        print("Quality and PII filtering complete.")
+        print("Quality filtering (and PII if available) complete.")
         
-        # 5. Exact Deduplication (New separate workflow API)
+        # 5. Exact Deduplication
         print("Running Exact Deduplication Workflow...")
         dedup_dir = os.path.join(self.output_dir, "dedup_results")
         os.makedirs(dedup_dir, exist_ok=True)
@@ -82,7 +94,7 @@ class NeMoDataCurator:
             output_path=dedup_dir,
             text_field="content",
             assign_id=True,
-            perform_removal=False, # Standard pattern: identifies and writes IDs out to output_path
+            perform_removal=False, 
             input_filetype="jsonl"
         )
         exact_workflow.run()
