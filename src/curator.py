@@ -10,8 +10,9 @@ from nemo_curator.stages.text.filters.heuristic import WordCountFilter
 
 # 1.0+ Updated Modifier Imports
 from nemo_curator.stages.text.modifiers import Modify
-from nemo_curator.modifiers.pii_modifier import PiiModifier
-
+from nemo_curator.pii import PiiModifier
+# or, depending on the release:
+from nemo_curator.pii import PiiRedactor
 from nemo_curator.stages.deduplication.exact.workflow import ExactDeduplicationWorkflow
 
 
