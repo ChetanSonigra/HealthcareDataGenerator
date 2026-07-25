@@ -21,7 +21,7 @@ except ImportError:
         from nemo_curator.stages.text.modifiers.pii_modifier import PiiModifier
     except ImportError:
         # Legacy 0.x path fallback
-        from nemo_curator.modifiers.pii_modifier import PiiModifier
+        from nemo_curator.modifiers import PiiModifier
 
 from nemo_curator.stages.deduplication.exact.workflow import ExactDeduplicationWorkflow
 
