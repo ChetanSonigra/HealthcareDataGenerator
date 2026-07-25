@@ -21,7 +21,6 @@ except ImportError as e:
 class Synthesizer:
     def __init__(self, config):
         self.config = config
-        self.api_url = self.config['microservices'].get('data_designer_url', "https://ai.api.nvidia.com/v1/nemo/dd")
         self.api_key = self.config['microservices']['api_key']
         self.model_id = self.config['microservices'].get('model', 'nvidia/nemotron-4-340b-instruct')
         self.model_alias = "nemotron_healthcare"
@@ -45,8 +44,9 @@ class Synthesizer:
             )
 
         # 1. Initialize the NeMo Data Designer Client
+        # FIX: Removed the base_url override so the SDK uses its correct native endpoints!
+        print("Initializing SDK Client...")
         client = NeMoDataDesignerClient(
-            base_url=self.api_url,
             default_headers={"Authorization": f"Bearer {self.api_key}"}
         )
 
@@ -63,10 +63,8 @@ class Synthesizer:
             )
         )
 
-        # 3. Submit the Job using the correct SDK syntax
+        # 3. Submit the Job
         print("Submitting job to NeMo Data Designer SDK...")
-        
-        # Use `.create()` and pass the builder directly
         job_results = client.create(builder, num_records=total_records)
         
         print("Waiting for job to complete (this may take a minute)...")
