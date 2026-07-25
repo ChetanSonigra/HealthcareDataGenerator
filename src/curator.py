@@ -8,7 +8,14 @@ from nemo_curator.stages.text.io.writer import JsonlWriter
 from nemo_curator.stages.text.filters import ScoreFilter
 from nemo_curator.stages.text.filters.heuristic import WordCountFilter
 
-from nemo_curator.stages.deduplication.exact.workflow import ExactDeduplicationWorkflow
+# --- BULLETPROOF DEDUPLICATION IMPORT ---
+exact_workflow_class = None
+try:
+    from nemo_curator.stages.deduplication.exact.workflow import ExactDeduplicationWorkflow
+    exact_workflow_class = ExactDeduplicationWorkflow
+    print("Successfully loaded ExactDeduplicationWorkflow.")
+except ImportError as e:
+    print(f"WARNING: Skipping GPU-accelerated Exact Deduplication. Missing RAPIDS dependency: {e}")
 
 # --- BULLETPROOF PII IMPORT ---
 pii_stage = None
@@ -39,7 +46,7 @@ except ImportError:
             pii_stage = Modify(modifier_fn=pii_modifier_obj, input_fields="content")
             
         except ImportError as e:
-            print(f"WARNING: Skipping PII Filtration. Could not locate PII modules in this NeMo Curator version. Error: {e}")
+            print(f"WARNING: Skipping PII Filtration. Could not locate PII modules. Error: {e}")
             pii_stage = None
 # ------------------------------
 
@@ -85,20 +92,23 @@ class NeMoDataCurator:
         print("Quality filtering (and PII if available) complete.")
         
         # 5. Exact Deduplication
-        print("Running Exact Deduplication Workflow...")
-        dedup_dir = os.path.join(self.output_dir, "dedup_results")
-        os.makedirs(dedup_dir, exist_ok=True)
-        
-        exact_workflow = ExactDeduplicationWorkflow(
-            input_path=filtered_output,
-            output_path=dedup_dir,
-            text_field="content",
-            assign_id=True,
-            perform_removal=False, 
-            input_filetype="jsonl"
-        )
-        exact_workflow.run()
-        print(f"Deduplicated IDs isolated and saved to {dedup_dir}")
+        if exact_workflow_class:
+            print("Running Exact Deduplication Workflow...")
+            dedup_dir = os.path.join(self.output_dir, "dedup_results")
+            os.makedirs(dedup_dir, exist_ok=True)
+            
+            exact_workflow = exact_workflow_class(
+                input_path=filtered_output,
+                output_path=dedup_dir,
+                text_field="content",
+                assign_id=True,
+                perform_removal=False, 
+                input_filetype="jsonl"
+            )
+            exact_workflow.run()
+            print(f"Deduplicated IDs isolated and saved to {dedup_dir}")
+        else:
+            print("Skipping Exact Deduplication due to missing RAPIDS dependencies. Proceeding with filtered data.")
         
         ray_client.stop()
         return filtered_output
