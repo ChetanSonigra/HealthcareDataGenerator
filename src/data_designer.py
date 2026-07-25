@@ -1,56 +1,50 @@
 import os
-import argparse
 from loguru import logger
+from nemo_curator.core.client import RayClient
+from nemo_curator.stages.deduplication.exact.workflow import ExactDeduplicationWorkflow
+from nemo_curator.stages.text.deduplication.removal_workflow import TextDuplicatesRemovalWorkflow
 
-# --- Correct NeMo Curator Imports ---
-from nemo_curator import Sequential, ExactDuplicates
-from nemo_curator.datasets import DocumentDataset
-from nemo_curator.modifiers import PiiModifier
-from nemo_curator.filters import WordCountFilter
-
-def design_data(raw_data_dir: str, output_dir: str):
-    logger.info("Initializing Data Designer (NeMo Curator)...")
-    
-    # 1. Load dataset (DocumentDataset is a wrapper around Dask DataFrames)
-    input_path = os.path.join(raw_data_dir, "*.jsonl")
-    dataset = DocumentDataset.read_jsonl(input_path)
-    
-    # 2. Define the sequential curation pipeline
-    # Modifiers alter text; Filters drop bad documents
-    curation_pipeline = Sequential([
-        # Redact PII leveraging the Presidio framework underneath
-        PiiModifier(supported_entities=["PERSON", "EMAIL_ADDRESS", "PHONE_NUMBER"]),
+class DataDesignerProcessor:
+    def __init__(self, input_dir: str, output_dir: str):
+        self.input_dir = input_dir
+        self.output_dir = output_dir
+        os.makedirs(self.output_dir, exist_ok=True)
         
-        # Drop documents that are too short to be useful for pretraining/fine-tuning
-        WordCountFilter(min_words=20)
-    ])
-    
-    logger.info("Applying PII Modification and Quality Filters...")
-    curated_dataset = curation_pipeline(dataset)
-    
-    # 3. Exact Deduplication
-    # Hashing documents (MD5 by default) to identify and remove exact matches
-    logger.info("Running Exact Deduplication...")
-    exact_dup = ExactDuplicates(
-        id_field="id",
-        text_field="text",
-        hash_method="md5"
-    )
-    
-    deduped_dataset = exact_dup(curated_dataset)
-    
-    # 4. Save the designed data
-    os.makedirs(output_dir, exist_ok=True)
-    output_path = os.path.join(output_dir, "curated_output.jsonl")
-    
-    logger.info(f"Writing curated data to {output_path}")
-    deduped_dataset.to_jsonl(output_path)
-    logger.info("Data Design Complete.")
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--raw_data_dir", type=str, required=True, help="Path to raw JSONL data")
-    parser.add_argument("--output_dir", type=str, required=True, help="Path to save curated JSONL data")
-    
-    args = parser.parse_args()
-    design_data(args.raw_data_dir, args.output_dir)
+    def execute_workflows(self) -> str:
+        logger.info("Starting Ray-based Data Designer workflows...")
+        
+        # Initialize Ray Client cluster context
+        ray_client = RayClient()
+        ray_client.start()
+        
+        results_dir = os.path.join(self.output_dir, "dedup_results")
+        deduped_output_dir = os.path.join(self.output_dir, "deduplicated")
+        
+        # 1. Execute Exact Deduplication Workflow via Ray
+        logger.info("Running Exact Deduplication Workflow...")
+        exact_workflow = ExactDeduplicationWorkflow(
+            input_path=os.path.join(self.input_dir, "*.jsonl"),
+            output_path=results_dir,
+            text_field="text",
+            assign_id=True,
+            perform_removal=False,
+            input_filetype="jsonl"
+        )
+        exact_result = exact_workflow.run()
+        logger.info(f"Exact deduplication metadata: {exact_result.metadata}")
+        
+        # 2. Remove identified duplicates using TextDuplicatesRemovalWorkflow
+        logger.info("Executing Text Duplicates Removal Workflow...")
+        removal_workflow = TextDuplicatesRemovalWorkflow(
+            input_path=os.path.join(self.input_dir, "*.jsonl"),
+            ids_to_remove_path=os.path.join(results_dir, "ExactDuplicateIds"),
+            output_path=deduped_output_dir,
+            input_filetype="jsonl",
+            input_id_field="_curator_dedup_id",
+            ids_to_remove_duplicate_id_field="_curator_dedup_id",
+            id_generator_path=os.path.join(results_dir, "exact_id_generator.json")
+        )
+        removal_result = removal_workflow.run()
+        logger.info(f"Removal complete. Clean corpus generated at {deduped_output_dir}")
+        
+        return deduped_output_dir

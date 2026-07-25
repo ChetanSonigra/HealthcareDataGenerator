@@ -1,5 +1,3 @@
-# configs/pipeline_config.yaml
-
 api_settings:
   chat_endpoint: "https://api.nvidia.com/v1/chat/completions"
   nvcf_safety_url: "https://api.nvidia.com/v1/safety/evaluate"
@@ -7,12 +5,7 @@ api_settings:
 
 data_designer:
   target_language: "en"
-  fuzzy_dedup_threshold: 0.8
-  fuzzy_num_permutations: 128
-  pii_entities_to_redact:
-    - "PERSON"
-    - "EMAIL_ADDRESS"
-    - "PHONE_NUMBER"
+  input_filetype: "jsonl"
 
 synthesizer:
   model: "nemotron-4-340b-instruct"

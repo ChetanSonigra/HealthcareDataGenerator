@@ -1,5 +1,6 @@
 import json
 import requests
+from loguru import logger
 
 class DataSynthesizer:
     def __init__(self, api_key: str, endpoint_url: str):
@@ -11,13 +12,12 @@ class DataSynthesizer:
         }
 
     def generate_prompt(self, case_id: str, state: str, plan_type: str, topic: str) -> str:
-        """Generates dynamic prompts mirroring the synthetic cases."""
         return (
-            f"Generate a multi-turn customer support conversation for synthetic case {case_id}[cite: 1]. "
-            f"The customer profile is a {plan_type} member in {state}[cite: 1]. "
-            f"The user needs help understanding where to verify a {topic} question[cite: 1]. "
-            "The assistant must use only public guidance and must not make a coverage decision[cite: 1]. "
-            "Ensure the resolution emphasizes guidance and human verification[cite: 1]."
+            f"Generate a multi-turn customer support conversation for synthetic case {case_id}. "
+            f"The customer profile is a {plan_type} member in {state}. "
+            f"The user needs help understanding where to verify a {topic} question. "
+            "The assistant must use only public guidance and must not make a coverage decision. "
+            "Ensure the resolution emphasizes guidance and human verification."
         )
 
     def generate_synthetic_data(self, prompt: str) -> dict:
@@ -30,12 +30,3 @@ class DataSynthesizer:
         response = requests.post(self.endpoint_url, headers=self.headers, json=payload)
         response.raise_for_status()
         return response.json()
-
-if __name__ == "__main__":
-    synthesizer = DataSynthesizer("YOUR_API_KEY", "https://api.nvidia.com/v1/chat/completions")
-    # Generating a prompt for a fictional Medicare Advantage scenario in AZ[cite: 1]
-    prompt = synthesizer.generate_prompt(
-        case_id="SYNCASE000001", state="AZ", plan_type="Medicare Advantage", topic="benefit or eligibility"
-    )
-    result = synthesizer.generate_synthetic_data(prompt)
-    print(json.dumps(result, indent=2))
