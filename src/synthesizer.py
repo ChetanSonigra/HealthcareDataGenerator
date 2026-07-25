@@ -26,7 +26,7 @@ class Synthesizer:
         self.model_id = self.config['microservices'].get('model', 'nvidia/nemotron-4-340b-instruct')
         self.model_alias = "nemotron_healthcare"
 
-    def generate_synthetic_data(self, prompt, total_records=10): # Lowered to 10 for faster testing!
+    def generate_synthetic_data(self, prompt, total_records=10):
         print(f"--- Running STRICT SDK Synthetic Data Generation (Target: {total_records} records) ---")
         output_path = os.path.join(self.config['pipeline']['output_dir'], "raw_synthetic_data.jsonl")
 
@@ -34,7 +34,7 @@ class Synthesizer:
         if self.api_key in ["YOUR_ACTUAL_API_KEY", "YOUR_NVIDIA_API_KEY", ""]:
             raise ValueError(
                 "\n\n🛑 [CRITICAL ERROR] Missing API Key! 🛑\n"
-                "You are still using the placeholder API key. You must paste a real NVIDIA NIM API key into your config/pipeline_config.yaml file.\n"
+                "You must paste a real NVIDIA NIM API key into your config/pipeline_config.yaml file.\n"
             )
 
         # 🚨 HARD CHECK 2: The SDK Installation 🚨
@@ -42,7 +42,6 @@ class Synthesizer:
             raise ImportError(
                 f"\n\n🛑 [CRITICAL ERROR] SDK Missing! 🛑\n"
                 f"Python cannot find the NeMo Microservices SDK. The specific error was: {SDK_ERROR}\n"
-                f"Please run this in your terminal: pip install \"nemo-microservices[data-designer]\"\n"
             )
 
         # 1. Initialize the NeMo Data Designer Client
@@ -52,7 +51,6 @@ class Synthesizer:
         )
 
         # 2. Configure the Model and Schema using the Config Builder
-        # FIX: Changed 'model_id' to 'model' to satisfy Pydantic validation
         builder = DataDesignerConfigBuilder(
             model_configs=[ModelConfig(alias=self.model_alias, model=self.model_id)]
         )
@@ -65,21 +63,29 @@ class Synthesizer:
             )
         )
 
-        # 3. Submit the Job
+        # 3. Submit the Job using the correct SDK syntax
         print("Submitting job to NeMo Data Designer SDK...")
-        dataset_config = builder.build()
         
-        job_results = client.generate(config=dataset_config, num_records=total_records)
+        # Use `.create()` and pass the builder directly
+        job_results = client.create(builder, num_records=total_records)
+        
+        print("Waiting for job to complete (this may take a minute)...")
+        job_results.wait_until_done()
+        
+        # Load the final generated dataset
+        dataset = job_results.load_dataset()
+        
+        # Convert to a list of dicts (handles both Pandas DataFrames and HuggingFace dataset types)
+        records = dataset.to_dict(orient="records") if hasattr(dataset, "to_dict") else dataset
         
         with open(output_path, "w") as f:
-            for record in job_results:
+            for record in records:
                 raw_text = record.get("synthetic_healthcare_case", "{}")
                 clean_text = raw_text.replace("```json", "").replace("```", "").strip()
                 try:
                     json_data = json.loads(clean_text)
                     f.write(json.dumps(json_data) + "\n")
                 except json.JSONDecodeError:
-                    # In case the LLM outputs malformed JSON for a single record, skip it and print a warning
                     print("Warning: Skipping a record due to malformed JSON output from LLM.")
                 
         print(f"✅ Successfully saved REAL generated data to {output_path}")
