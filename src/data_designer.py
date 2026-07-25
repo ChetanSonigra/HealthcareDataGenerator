@@ -7,18 +7,16 @@ class DataDesigner:
     def generate_prompt(self):
         print("--- Generating Prompt via Data Designer ---")
         
-        # Load sample data structure
+        # Load sample data structure dynamically
         with open(self.config['pipeline']['generated_data_path'], 'r') as f:
-            sample_data = json.load(f)
+            sample_data = json.loads(f.readline()) # Reading first line of JSONL
             
         with open(self.config['pipeline']['manifest_path'], 'r') as f:
             manifest_data = json.load(f)
 
-        # Extract context from manifest
         sources = manifest_data.get("sources", [])
         context_docs = "\n".join([f"- {s['title']} ({s['category']})" for s in sources[:5]])
 
-        # Generate a high-quality prompt instruction
         prompt = f"""
         You are an expert synthetic data generator for healthcare customer support.
         Using the following reference documents for grounding:
@@ -26,7 +24,7 @@ class DataDesigner:
 
         Generate 10 highly realistic synthetic customer support cases. 
         Each case must strictly adhere to the following JSON schema and include a fictional Medicare scenario:
-        {json.dumps(sample_data[0], indent=2)}
+        {json.dumps(sample_data, indent=2)}
         
         Requirements:
         1. Maintain synthetic flags: "synthetic_only": true.

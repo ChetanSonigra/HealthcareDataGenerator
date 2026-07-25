@@ -1,9 +1,13 @@
 import os
-import nemo_curator
-from nemo_curator.datasets import DocumentDataset
+from nemo_curator.core.client import RayClient
+from nemo_curator.pipeline import Pipeline
+from nemo_curator.stages.text.io.reader import JsonlReader
+from nemo_curator.stages.text.io.writer import JsonlWriter
+from nemo_curator.stages.text.filters.filter import FilterStage
+from nemo_curator.stages.text.modifiers.modify import ModifyStage
 from nemo_curator.filters import WordCountFilter
-from nemo_curator.modules import ExactDuplicates, FuzzyDuplicates, SemanticDuplicates
 from nemo_curator.modifiers.pii_modifier import PiiModifier
+from nemo_curator.stages.deduplication.exact.workflow import ExactDeduplicationWorkflow
 
 class NeMoDataCurator:
     def __init__(self, config):
@@ -12,38 +16,52 @@ class NeMoDataCurator:
         os.makedirs(self.output_dir, exist_ok=True)
 
     def process_data(self):
-        print("--- Starting NeMo Curator Process ---")
-        # Load dataset
-        dataset = DocumentDataset.read_json(
-            self.config['pipeline']['generated_data_path'],
-            backend="ray"
+        print("--- Starting NeMo Curator Process (1.0+ API) ---")
+        
+        # 1. Initialize Ray Client specifically for Curator
+        ray_client = RayClient()
+        ray_client.start()
+        print("Ray client initialized.")
+        
+        input_file = self.config['pipeline']['generated_data_path']
+        filtered_output = os.path.join(self.output_dir, "filtered_data.jsonl")
+        
+        # 2. Define standard IO Stages
+        reader = JsonlReader(input_file)
+        writer = JsonlWriter(filtered_output)
+        
+        # 3. Define Processing Stages for Pipeline
+        print("Applying Quality Assessment and PII Filters...")
+        word_count_filter = FilterStage(WordCountFilter(min_words=5))
+        pii_modifier = ModifyStage(
+            PiiModifier(supported_entities=["PERSON", "PHONE_NUMBER", "EMAIL_ADDRESS", "LOCATION"])
         )
         
-        # 1. Quality Assessment (Basic word count filter as example)
-        print("Applying Quality Assessment Filters...")
-        dataset = dataset.filter(WordCountFilter(min_words=5))
-
-        # 2. PII Filtration
-        print("Applying PII Filtration...")
-        pii_modifier = PiiModifier(
-            supported_entities=["PERSON", "PHONE_NUMBER", "EMAIL_ADDRESS", "LOCATION"]
+        # 4. Build and Execute the Modality Pipeline
+        pipeline = Pipeline([
+            reader,
+            word_count_filter,
+            pii_modifier,
+            writer
+        ])
+        pipeline.run()
+        print("Quality and PII filtering complete.")
+        
+        # 5. Exact Deduplication (New separate workflow API)
+        print("Running Exact Deduplication Workflow...")
+        dedup_dir = os.path.join(self.output_dir, "dedup_results")
+        os.makedirs(dedup_dir, exist_ok=True)
+        
+        exact_workflow = ExactDeduplicationWorkflow(
+            input_path=filtered_output,
+            output_path=dedup_dir,
+            text_field="content",
+            assign_id=True,
+            perform_removal=False, # Standard pattern: identifies and writes IDs out to output_path
+            input_filetype="jsonl"
         )
-        dataset = dataset.modify(pii_modifier)
-
-        # 3. Deduplication (Exact, Fuzzy, Semantic)
-        print("Running Deduplication...")
-        exact_dedup = ExactDuplicates(text_field="content")
-        dataset = exact_dedup(dataset)
+        exact_workflow.run()
+        print(f"Deduplicated IDs isolated and saved to {dedup_dir}")
         
-        fuzzy_dedup = FuzzyDuplicates(text_field="content", seed=42)
-        dataset = fuzzy_dedup(dataset)
-
-        # Note: Semantic deduplication requires an embedding model initialization
-        # semantic_dedup = SemanticDuplicates(text_field="content", embedding_model="...")
-        # dataset = semantic_dedup(dataset)
-        
-        # Save curated data
-        output_path = os.path.join(self.output_dir, "curated_data.jsonl")
-        dataset.to_json(output_path, write_empty=False)
-        print(f"Curated data saved to {output_path}")
-        return output_path
+        ray_client.stop()
+        return filtered_output

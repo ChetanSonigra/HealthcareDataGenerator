@@ -1,20 +1,12 @@
-api_settings:
-  chat_endpoint: "https://api.nvidia.com/v1/chat/completions"
-  nvcf_safety_url: "https://api.nvidia.com/v1/safety/evaluate"
-  customizer_url: "https://api.nvidia.com/v1/customization"
+pipeline:
+  data_dir: "./data"
+  manifest_path: "./data/manifest.json"
+  generated_data_path: "./data/generated_data.jsonl" # Note: Curator 1.0+ uses JSONL natively
+  output_dir: "./output"
 
-data_designer:
-  target_language: "en"
-  input_filetype: "jsonl"
-
-synthesizer:
+microservices:
+  api_key: "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" # Replace with your NVIDIA NIM API Key
+  data_designer_url: "https://api.nvidia.com/v1/nemo/data-designer/generate"
+  safe_synthesizer_url: "https://api.nvidia.com/v1/nemo/safe-synthesizer/validate"
+  customizer_url: "https://api.nvidia.com/v1/nemo/customizer/lora"
   model: "nemotron-4-340b-instruct"
-  temperature: 0.7
-  max_tokens: 1024
-
-lora_finetuning:
-  base_model: "llama-3-70b"
-  epochs: 3
-  learning_rate: 0.0002
-  lora_r: 16
-  lora_alpha: 32

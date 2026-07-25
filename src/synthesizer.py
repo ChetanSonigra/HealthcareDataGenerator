@@ -20,16 +20,15 @@ class Synthesizer:
             "max_tokens": 4096
         }
         
-        # In a real environment, this hits the NeMo Data Designer NIM endpoint
         try:
             response = requests.post(self.api_url, headers=self.headers, json=payload)
             response.raise_for_status()
             synthetic_output = response.json()['choices'][0]['message']['content']
         except Exception as e:
-            print(f"API Error (Fallback to mock for demonstration): {e}")
-            synthetic_output = '[{"mock": "generated_data", "synthetic_only": true}]'
+            print(f"API Error (Fallback to mock for execution): {e}")
+            synthetic_output = '{"mock": "generated_data", "synthetic_only": true}\n'
 
-        output_path = os.path.join(self.config['pipeline']['output_dir'], "raw_synthetic_data.json")
+        output_path = os.path.join(self.config['pipeline']['output_dir'], "raw_synthetic_data.jsonl")
         with open(output_path, "w") as f:
             f.write(synthetic_output)
             
