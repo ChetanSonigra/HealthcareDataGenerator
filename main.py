@@ -1,9 +1,9 @@
 import yaml
-from curator import NeMoDataCurator
-from data_designer import DataDesigner
-from synthesizer import Synthesizer
-from safe_synthesizer import SafeSynthesizer
-from lora_finetune import LoRACustomizer
+from src.curator import NeMoDataCurator
+from src.data_designer import DataDesigner
+from src.synthesizer import Synthesizer
+from src.safe_synthesizer import SafeSynthesizer
+from src.lora_finetune import LoRACustomizer
 
 def load_config(config_path="config/pipeline_config.yaml"):
     with open(config_path, "r") as f:
