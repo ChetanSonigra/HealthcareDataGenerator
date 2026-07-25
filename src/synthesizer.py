@@ -52,8 +52,9 @@ class Synthesizer:
         )
 
         # 2. Configure the Model and Schema using the Config Builder
+        # FIX: Changed 'model_id' to 'model' to satisfy Pydantic validation
         builder = DataDesignerConfigBuilder(
-            model_configs=[ModelConfig(alias=self.model_alias, model_id=self.model_id)]
+            model_configs=[ModelConfig(alias=self.model_alias, model=self.model_id)]
         )
 
         builder.add_column(
@@ -64,7 +65,7 @@ class Synthesizer:
             )
         )
 
-        # 3. Submit the Job (NO TRY-EXCEPT HERE. Let it crash if it fails!)
+        # 3. Submit the Job
         print("Submitting job to NeMo Data Designer SDK...")
         dataset_config = builder.build()
         
@@ -74,8 +75,12 @@ class Synthesizer:
             for record in job_results:
                 raw_text = record.get("synthetic_healthcare_case", "{}")
                 clean_text = raw_text.replace("```json", "").replace("```", "").strip()
-                json_data = json.loads(clean_text)
-                f.write(json.dumps(json_data) + "\n")
+                try:
+                    json_data = json.loads(clean_text)
+                    f.write(json.dumps(json_data) + "\n")
+                except json.JSONDecodeError:
+                    # In case the LLM outputs malformed JSON for a single record, skip it and print a warning
+                    print("Warning: Skipping a record due to malformed JSON output from LLM.")
                 
         print(f"✅ Successfully saved REAL generated data to {output_path}")
         return output_path
