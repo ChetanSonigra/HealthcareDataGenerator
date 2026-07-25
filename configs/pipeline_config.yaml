@@ -1,7 +1,7 @@
 pipeline:
-  data_dir: "./data"
-  manifest_path: "./data/manifest.json"
-  generated_data_path: "./data/generated_data.json" # Reverted back to the original .json name
+  data_dir: "./data/raw"
+  manifest_path: "./data/raw/manifest.json"
+  generated_data_path: "./data/raw/generated_data.json" # Reverted back to the original .json name
   output_dir: "./output"
 
 ray:
