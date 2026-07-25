@@ -80,7 +80,9 @@ class NeMoDataCurator:
         )
         
         # Build Pipeline dynamically based on whether PII loaded successfully
-        pipeline_stages = [reader, word_count_filter]
+# Build Pipeline dynamically based on whether PII loaded successfully
+        pipeline_stages = [reader]       
+        # We are skipping the word_count_filter because "content" is nested inside the "turns" array.       
         if pii_stage:
             print("Adding PII Filtration to pipeline...")
             pipeline_stages.append(pii_stage)
