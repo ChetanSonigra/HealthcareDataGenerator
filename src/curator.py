@@ -3,9 +3,9 @@ from nemo_curator.core.client import RayClient
 from nemo_curator.pipeline import Pipeline
 from nemo_curator.stages.text.io.reader import JsonlReader
 from nemo_curator.stages.text.io.writer import JsonlWriter
-from nemo_curator.stages.text.filters.filter import FilterStage
-from nemo_curator.stages.text.modifiers.modify import ModifyStage
+from nemo_curator.stages.text.filters import ScoreFilter
 from nemo_curator.filters import WordCountFilter
+from nemo_curator.stages.text.modifiers import Modify
 from nemo_curator.modifiers.pii_modifier import PiiModifier
 from nemo_curator.stages.deduplication.exact.workflow import ExactDeduplicationWorkflow
 
@@ -32,9 +32,17 @@ class NeMoDataCurator:
         
         # 3. Define Processing Stages for Pipeline
         print("Applying Quality Assessment and PII Filters...")
-        word_count_filter = FilterStage(WordCountFilter(min_words=5))
-        pii_modifier = ModifyStage(
-            PiiModifier(supported_entities=["PERSON", "PHONE_NUMBER", "EMAIL_ADDRESS", "LOCATION"])
+        
+        # Wraps the filter object using ScoreFilter
+        word_count_filter = ScoreFilter(
+            filter_obj=WordCountFilter(min_words=5),
+            text_field="content" # Target field in your JSONL
+        )
+        
+        # Wraps the modifier object using Modify
+        pii_modifier = Modify(
+            modifier_fn=PiiModifier(supported_entities=["PERSON", "PHONE_NUMBER", "EMAIL_ADDRESS", "LOCATION"]),
+            input_fields="content"
         )
         
         # 4. Build and Execute the Modality Pipeline
